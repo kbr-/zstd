@@ -120,7 +120,9 @@ endif
 endif
 CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 
-ZSTD_OBJ   := $(patsubst %.c,%.o,$(ZSTD_FILES))
+BUILD_DIR ?= ./
+
+ZSTD_OBJ   := $(addprefix $(BUILD_DIR), $(patsubst %.c,%.o,$(ZSTD_FILES)))
 
 # macOS linker doesn't support -soname, and use different extension
 # see : https://developer.apple.com/library/mac/documentation/DeveloperTools/Conceptual/DynamicLibraries/100-Articles/DynamicLibraryDesignGuidelines.html
@@ -136,15 +138,18 @@ else
 	SHARED_EXT_VER = $(SHARED_EXT).$(LIBVER)
 endif
 
-
 .PHONY: default all clean install uninstall
 
 default: lib-release
 
 all: lib
 
-libzstd.a: ARFLAGS = rcs
-libzstd.a: $(ZSTD_OBJ)
+$(ZSTD_OBJ): $(BUILD_DIR)%.o: %.c
+	mkdir -p $(@D)
+	$(CC) -o $@ -c $(FLAGS) $<
+
+$(BUILD_DIR)/libzstd.a: ARFLAGS = rcs
+$(BUILD_DIR)/libzstd.a: $(ZSTD_OBJ)
 	@echo compiling static library
 	@$(AR) $(ARFLAGS) $@ $^
 
@@ -197,9 +202,9 @@ libzstd-nomt: $(ZSTD_NOMT_FILES)
 
 clean:
 	@$(RM) -r *.dSYM   # macOS-specific
-	@$(RM) core *.o *.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc
+	@$(RM) $(BUILD_DIR)/core $(BUILD_DIR)/*.o $(BUILD_DIR)/*.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc
 	@$(RM) dll/libzstd.dll dll/libzstd.lib libzstd-nomt*
-	@$(RM) common/*.o compress/*.o decompress/*.o dictBuilder/*.o legacy/*.o deprecated/*.o
+	@$(RM) $(BUILD_DIR)/common/*.o $(BUILD_DIR)/compress/*.o $(BUILD_DIR)/decompress/*.o $(BUILD_DIR)/dictBuilder/*.o $(BUILD_DIR)/legacy/*.o $(BUILD_DIR)/deprecated/*.o
 	@echo Cleaning library completed
 
 #-----------------------------------------------------------------------------
